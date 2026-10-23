@@ -13,6 +13,7 @@
     <packaging>war</packaging>
 
     <properties>
+    <sonar.host.url>http://52.63.84.73:9000</sonar.host.url>
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
