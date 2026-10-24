@@ -34,6 +34,12 @@
         <name>DevOps Releases Nexus Repository</name>
         <url>http://16.176.208.195:8081/repository/maven-releases/</url>
     </repository>
+
+    <snapshotRepository>
+        <id>nexus</id>
+        <name>DevOps Snapshots Nexus Repository</name>
+        <url>http://16.176.208.195:8081/repository/maven-snapshots/</url>
+    </snapshotRepository>
 </distributionManagement>
 
 
