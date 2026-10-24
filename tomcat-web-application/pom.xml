@@ -27,4 +27,14 @@
         </dependency>
     </dependencies>
 
+    
+<distributionManagement>
+    <repository>
+        <id>nexus</id>
+        <name>DevOps Releases Nexus Repository</name>
+        <url>http://16.176.208.195:8081/repository/maven-releases/</url>
+    </repository>
+</distributionManagement>
+
+
 </project>
