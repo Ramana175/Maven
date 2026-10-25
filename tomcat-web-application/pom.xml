@@ -29,9 +29,8 @@
 
     
 <distributionManagement>
-    <repository>
+     <repository>
         <id>nexus</id>
-        <name>DevOps Releases Nexus Repository</name>
         <url>http://52.64.137.56:8081/repository/maven-releases/</url>
     </repository>
 
