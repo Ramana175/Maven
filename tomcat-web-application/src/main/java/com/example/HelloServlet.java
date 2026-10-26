@@ -16,6 +16,6 @@ public class HelloServlet extends HttpServlet {
             throws IOException {
 
         response.setContentType("text/plain;charset=UTF-8");
-        response.getWriter().println("Hello from my Tomcat web application!");
+        response.getWriter().println("Hello from my Tomcat web application! ");
     }
 }
