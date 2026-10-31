@@ -1,0 +1,178 @@
+pipeline {
+    agent any
+
+    // Pipeline execution and reliability settings
+    options {
+        // Stop the pipeline if execution exceeds 30 minutes
+        timeout(time: 30, unit: 'MINUTES')
+
+        // Display timestamps in Jenkins console logs
+        timestamps()
+
+        // Prevent multiple builds from running simultaneously
+        disableConcurrentBuilds()
+    }
+
+    // Configure Maven installation from Jenkins Global Tool Configuration
+    tools {
+        maven "Maven-3.10.0"
+    }
+
+    // Tomcat private IP (stays the same when the EC2 instance restarts)
+    environment {
+        TOMCAT_URL = 'http://172.31.46.97:8080'
+    }
+
+    stages {
+
+        // Stage 1: Notify Slack when the pipeline starts
+        stage('Pipeline Started') {
+            steps {
+                script {
+                    notifyBuild('STARTED')
+                }
+            }
+        }
+
+        // Stage 2: Download source code from GitHub
+        stage('Git Checkout') {
+            steps {
+                git branch: 'development',
+                    url: 'https://github.com/Ramana175/Maven.git'
+            }
+        }
+
+        // Stage 3: Clean, compile, test and verify the Maven project
+        stage('Compile and Test') {
+            steps {
+                dir('tomcat-web-application') {
+                    sh "mvn clean verify"
+                }
+            }
+        }
+
+        // Stage 4: Analyze source code using SonarQube
+        stage('SonarQube') {
+            steps {
+                dir('tomcat-web-application') {
+
+                    // Connect Jenkins to the configured SonarQube server
+                    withSonarQubeEnv('SonarQube-Server') {
+                        sh "mvn org.sonarsource.scanner.maven:sonar-maven-plugin:sonar"
+                    }
+
+                }
+            }
+        }
+
+        // Stage 5: Upload the application artifact to Nexus
+        stage('Nexus') {
+            steps {
+                dir('tomcat-web-application') {
+
+                    // Deploy the Maven artifact to the configured Nexus repository
+                    sh "mvn deploy"
+                }
+            }
+        }
+
+        // Stage 6: Deploy the WAR file to the Tomcat application server
+        stage('Deploy to Tomcat') {
+            steps {
+                dir('tomcat-web-application') {
+
+                    // Retrieve Tomcat credentials securely from Jenkins
+                    withCredentials([usernamePassword(
+                        credentialsId: 'tomcat-manager',
+                        usernameVariable: 'TOMCAT_USER',
+                        passwordVariable: 'TOMCAT_PASSWORD'
+                    )]) {
+
+                        // Upload and deploy the WAR file using Tomcat Manager
+                        sh '''
+                            curl --fail --show-error --silent \
+                            --user "$TOMCAT_USER:$TOMCAT_PASSWORD" \
+                            --upload-file target/tomcat-web-application-1.0.0.war \
+                            "$TOMCAT_URL/manager/text/deploy?path=/tomcat-web-application&update=true"
+                        '''
+                    }
+                }
+            }
+        }
+    }
+
+    // Post-build actions based on pipeline result
+    post {
+
+        // Runs regardless of success or failure
+        always {
+            echo 'Pipeline execution finished!'
+        }
+
+        // Send green Slack notification when all stages succeed
+        success {
+            script {
+                notifyBuild('SUCCESS')
+            }
+        }
+
+        // Send red Slack notification when the pipeline fails
+        failure {
+            script {
+                notifyBuild('FAILURE')
+            }
+        }
+
+        // Send orange Slack notification if the pipeline is aborted
+        aborted {
+            script {
+                notifyBuild('ABORTED')
+            }
+        }
+    }
+}
+
+// Reusable Slack notification function
+def notifyBuild(String buildStatus = 'STARTED') {
+
+    // Define Slack message color based on pipeline status
+    def colourCode
+
+    // Prepare notification subject with job name and build number
+    def subject = "${buildStatus}: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'"
+
+    // Add Jenkins build URL to the notification
+    def summary = "${subject} (${env.BUILD_URL})"
+
+    // Select notification color based on build status
+    switch (buildStatus) {
+
+        case 'STARTED':
+            colourCode = '#2D9CDB' // Blue
+            break
+
+        case 'SUCCESS':
+            colourCode = '#2EB886' // Green
+            break
+
+        case 'FAILURE':
+            colourCode = '#E01E5A' // Red
+            break
+
+        case 'ABORTED':
+            colourCode = '#F2C744' // Orange
+            break
+
+        default:
+            colourCode = '#E01E5A' // Red
+            break
+    }
+
+    // Send notification to the configured Slack channel
+    slackSend(
+        channel: '#new-channel',
+        color: colourCode,
+        message: summary,
+        tokenCredentialId: 'slack-bot-token'
+    )
+}
