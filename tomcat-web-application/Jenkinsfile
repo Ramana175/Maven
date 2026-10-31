@@ -1,0 +1,85 @@
+
+node {
+    def mavenHome = tool name: "Maven-3.10.0"
+
+    try {
+        // 1. Build Started - Yellow
+        slackSend(
+            channel: '#new-channel',
+            color: '#F2C94C',
+            message: "BUILD STARTED: ${env.JOB_NAME} #${env.BUILD_NUMBER}"
+        )
+
+        // 2. Git Checkout
+        stage('Git Checkout') {
+            git branch: 'development',
+                url: 'https://github.com/Ramana175/Maven.git'
+        }
+
+        // 3. Build
+        stage('Build') {
+            dir('tomcat-web-application') {
+                sh "${mavenHome}/bin/mvn clean package"
+            }
+        }
+
+        // 4. SonarQube
+        stage('SonarQube') {
+            dir('tomcat-web-application') {
+                withSonarQubeEnv('SonarQube-Server') {
+                    sh """
+                        ${mavenHome}/bin/mvn clean package \
+                        org.sonarsource.scanner.maven:sonar-maven-plugin:5.3.0.6276:sonar
+                    """
+                }
+            }
+        }
+
+        // 5. Nexus Artifacts
+        stage('Nexus-Artifacts') {
+            dir('tomcat-web-application') {
+                sh "${mavenHome}/bin/mvn clean package deploy"
+            }
+        }
+
+        // 6. Tomcat Deployment
+        stage('Tomcat Deployment') {
+            dir('tomcat-web-application') {
+                withCredentials([usernamePassword(
+                    credentialsId: 'tomcat-manager',
+                    usernameVariable: 'TOMCAT_USER',
+                    passwordVariable: 'TOMCAT_PASSWORD'
+                )]) {
+                    sh '''
+                        curl --fail --show-error --silent \
+                            --user "$TOMCAT_USER:$TOMCAT_PASSWORD" \
+                            --upload-file target/tomcat-web-application-1.0.0.war \
+                            "http://13.211.236.136:8080/manager/text/deploy?path=/tomcat-web-application&update=true"
+                    '''
+                }
+            }
+        }
+
+        // 7. Build Successful - Green
+        slackSend(
+            channel: '#new-channel',
+            color: '#2EAD62',
+            message: "BUILD SUCCESSFUL: ${env.JOB_NAME} #${env.BUILD_NUMBER}"
+        )
+
+    } catch (err) {
+
+        // 8. Build Failed - Red
+        slackSend(
+            channel: '#new-channel',
+            color: '#E53935',
+            message: "BUILD FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}"
+        )
+
+        // Keep the Jenkins build status as FAILURE
+        currentBuild.result = 'FAILURE'
+
+        // Pass the original error back to Jenkins
+        throw err
+    }
+}
