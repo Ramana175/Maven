@@ -13,7 +13,7 @@
     <packaging>war</packaging>
 
     <properties>
-    <sonar.host.url>http://32.236.82.186:9000</sonar.host.url>
+    <sonar.host.url>http://3.25.67.210:9000</sonar.host.url>
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
@@ -31,13 +31,13 @@
 <distributionManagement>
      <repository>
         <id>nexus</id>
-        <url>http://52.64.137.56:8081/repository/maven-releases/</url>
+        <url>http://13.239.243.53:8081/repository/maven-releases/</url>
     </repository>
 
     <snapshotRepository>
         <id>nexus</id>
         <name>DevOps Snapshots Nexus Repository</name>
-        <url>http://52.64.137.56:8081/repository/maven-snapshots/</url>
+        <url>http://13.239.243.53:8081/repository/maven-snapshots/</url>
     </snapshotRepository>
 </distributionManagement>
 
